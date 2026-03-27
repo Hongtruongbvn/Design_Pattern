@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
 import useAuthStore from '../store/authStore';
@@ -29,16 +29,13 @@ const Checkout: React.FC = () => {
   const bookingId = searchParams.get('booking');
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('cash');
   const [paymentQR, setPaymentQR] = useState<string | null>(null);
   const [showQR, setShowQR] = useState(false);
+  const [generatingQR, setGeneratingQR] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
   useEffect(() => {
-    console.log('Booking ID from URL:', bookingId); // Debug log
-    
     if (bookingId) {
       fetchBooking();
     } else {
@@ -49,13 +46,10 @@ const Checkout: React.FC = () => {
 
   const fetchBooking = async () => {
     try {
-      console.log('Fetching booking:', bookingId); // Debug log
       const response = await api.get(`/bookings/${bookingId}`);
-      console.log('Booking data:', response.data); // Debug log
       setBooking(response.data);
-    } catch (error: any) {
-      console.error('Fetch booking error:', error); // Debug log
-      toast.error(error.response?.data?.message || 'Không thể tải thông tin đặt vé');
+    } catch (error) {
+      toast.error('Không thể tải thông tin đặt vé');
       navigate('/movies');
     } finally {
       setLoading(false);
@@ -63,37 +57,17 @@ const Checkout: React.FC = () => {
   };
 
   const fetchPaymentQR = async () => {
+    setGeneratingQR(true);
     try {
       const response = await api.get(`/bookings/${bookingId}/qr`);
       setPaymentQR(response.data.qrCode);
       setShowQR(true);
-    } catch (error) {
-      toast.error('Không thể tạo mã QR thanh toán');
-    }
-  };
-
-  const handlePayment = async () => {
-    if (paymentMethod === 'banking' && !showQR) {
-      await fetchPaymentQR();
-      return;
-    }
-
-    setProcessing(true);
-    try {
-      const paymentId = `PAY_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-      
-      await api.post(`/bookings/${bookingId}/confirm`, {
-        paymentId: paymentId,
-        paymentMethod: paymentMethod,
-      });
-      
-      toast.success('Thanh toán thành công!');
-      navigate(`/payment-success?booking=${bookingId}`);
+      toast.success('Đã tạo mã QR thanh toán');
     } catch (error: any) {
-      console.error('Payment error:', error);
-      toast.error(error.response?.data?.message || 'Thanh toán thất bại');
+      console.error('QR error:', error);
+      toast.error(error.response?.data?.message || 'Không thể tạo mã QR thanh toán');
     } finally {
-      setProcessing(false);
+      setGeneratingQR(false);
     }
   };
 
@@ -107,22 +81,14 @@ const Checkout: React.FC = () => {
   }
 
   if (!booking) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-gray-500">Không tìm thấy thông tin đặt vé</p>
-        <Link to="/movies" className="btn-primary inline-block mt-4">
-          Về trang chủ
-        </Link>
-      </div>
-    );
+    return null;
   }
 
   return (
     <div className="max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Thanh toán</h1>
+      <h1 className="text-2xl font-bold mb-6">Thanh toán qua chuyển khoản</h1>
 
       <div className="grid gap-6">
-        {/* Booking Summary */}
         <div className="card">
           <h2 className="text-xl font-bold mb-4">Thông tin đặt vé</h2>
           <div className="space-y-3">
@@ -157,7 +123,6 @@ const Checkout: React.FC = () => {
           </div>
         </div>
 
-        {/* User Info */}
         <div className="card">
           <h2 className="text-xl font-bold mb-4">Thông tin khách hàng</h2>
           <div className="space-y-3">
@@ -176,77 +141,70 @@ const Checkout: React.FC = () => {
           </div>
         </div>
 
-        {/* Payment Methods */}
         <div className="card">
-          <h2 className="text-xl font-bold mb-4">Phương thức thanh toán</h2>
-          <div className="space-y-3">
-            <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-              <input
-                type="radio"
-                name="paymentMethod"
-                value="cash"
-                checked={paymentMethod === 'cash'}
-                onChange={(e) => {
-                  setPaymentMethod(e.target.value);
-                  setShowQR(false);
-                }}
-                className="w-4 h-4 text-blue-600"
-              />
-              <div className="flex-1">
-                <span className="font-semibold">💵 Thanh toán khi nhận vé</span>
-                <p className="text-sm text-gray-500">Thanh toán trực tiếp tại rạp khi nhận vé</p>
-              </div>
-            </label>
-            
-            <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-              <input
-                type="radio"
-                name="paymentMethod"
-                value="banking"
-                checked={paymentMethod === 'banking'}
-                onChange={(e) => {
-                  setPaymentMethod(e.target.value);
-                  setShowQR(false);
-                }}
-                className="w-4 h-4 text-blue-600"
-              />
-              <div className="flex-1">
-                <span className="font-semibold">🏦 Chuyển khoản ngân hàng</span>
-                <p className="text-sm text-gray-500">Thanh toán qua chuyển khoản ngân hàng</p>
-              </div>
-            </label>
-          </div>
-
-          {/* QR Code for Banking */}
-          {paymentMethod === 'banking' && showQR && paymentQR && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg text-center">
-              <p className="text-sm font-medium mb-2">Quét mã QR để thanh toán:</p>
-              <img src={paymentQR} alt="QR Code" className="mx-auto w-48 h-48" />
-              <p className="text-xs text-gray-500 mt-2">
-                Số tiền: <strong>{booking.totalAmount.toLocaleString()}đ</strong>
+          <h2 className="text-xl font-bold mb-4">Quét mã QR để thanh toán</h2>
+          
+          {!showQR ? (
+            <div className="text-center py-8">
+              <div className="text-6xl mb-4">📱</div>
+              <p className="text-gray-600 mb-4">
+                Nhấn nút bên dưới để tạo mã QR thanh toán
               </p>
-              <p className="text-xs text-gray-500">
-                Nội dung: Thanh toan ve xem phim - Ma ve: {booking.bookingCode}
-              </p>
+              <button
+                onClick={fetchPaymentQR}
+                disabled={generatingQR}
+                className="btn-primary px-8 py-3 disabled:opacity-50"
+              >
+                {generatingQR ? 'Đang tạo QR...' : 'Tạo mã QR thanh toán'}
+              </button>
+            </div>
+          ) : (
+            <div className="text-center">
+              <div className="bg-gray-50 rounded-lg p-6 mb-4">
+                <p className="text-sm font-medium text-gray-700 mb-3">
+                  Quét mã QR bằng ứng dụng ngân hàng để thanh toán
+                </p>
+                <img 
+                  src={paymentQR || ''} 
+                  alt="QR Code" 
+                  className="mx-auto w-64 h-64 border-2 border-gray-200 rounded-lg"
+                />
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-gray-600">Thông tin thanh toán:</p>
+                  <p className="font-semibold text-blue-600">{booking.totalAmount.toLocaleString()}đ</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Nội dung: Thanh toan ve xem phim - Ma ve: {booking.bookingCode}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="mt-4 p-4 bg-yellow-50 rounded-lg">
+                <p className="text-sm text-yellow-800 flex items-center gap-2">
+                  <span>⚠️</span>
+                  Sau khi chuyển khoản, vui lòng chờ admin xác nhận thanh toán.
+                  Vé sẽ được cập nhật trong vòng 5-10 phút.
+                </p>
+              </div>
+              
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={() => {
+                    setShowQR(false);
+                    setPaymentQR(null);
+                  }}
+                  className="flex-1 btn-secondary"
+                >
+                  Tạo lại QR
+                </button>
+                <button
+                  onClick={() => navigate('/bookings')}
+                  className="flex-1 btn-primary"
+                >
+                  Xem danh sách đơn hàng
+                </button>
+              </div>
             </div>
           )}
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex gap-4">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex-1 btn-secondary"
-          >
-            Quay lại
-          </button>
-          <button
-            onClick={handlePayment}
-            disabled={processing}
-            className="flex-1 btn-primary disabled:opacity-50"
-          >
-            {processing ? 'Đang xử lý...' : paymentMethod === 'banking' && !showQR ? 'Tạo mã QR' : 'Xác nhận thanh toán'}
-          </button>
         </div>
       </div>
     </div>

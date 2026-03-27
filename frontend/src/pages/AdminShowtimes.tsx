@@ -102,6 +102,30 @@ const AdminShowtimes: React.FC = () => {
     }
   };
 
+  const handleStart = async (id: string) => {
+    if (confirm('Bắt đầu suất chiếu này?')) {
+      try {
+        await api.post(`/showtimes/${id}/start`);
+        toast.success('Đã bắt đầu suất chiếu');
+        fetchShowtimes();
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || 'Thao tác thất bại');
+      }
+    }
+  };
+
+  const handleEnd = async (id: string) => {
+    if (confirm('Kết thúc suất chiếu này?')) {
+      try {
+        await api.post(`/showtimes/${id}/end`);
+        toast.success('Đã kết thúc suất chiếu');
+        fetchShowtimes();
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || 'Thao tác thất bại');
+      }
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (confirm('Bạn có chắc muốn xóa suất chiếu này?')) {
       try {
@@ -224,7 +248,8 @@ const AdminShowtimes: React.FC = () => {
                 <th className="px-4 py-3 text-left">Rạp - Phòng</th>
                 <th className="px-4 py-3 text-left">Thời gian</th>
                 <th className="px-4 py-3 text-left">Giá vé</th>
-         
+                <th className="px-4 py-3 text-left">Trạng thái</th>
+                <th className="px-4 py-3 text-left">Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -245,23 +270,45 @@ const AdminShowtimes: React.FC = () => {
                   </td>
                   <td className="px-4 py-3">{showtime.basePrice.toLocaleString()}đ</td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded-full text-xs ${showtime.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                      {showtime.isActive ? 'Đang hoạt động' : 'Đã kết thúc'}
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      showtime.isActive 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {showtime.isActive ? 'Đang chiếu' : 'Chưa chiếu'}
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <button
-                      onClick={() => handleEdit(showtime)}
-                      className="bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600 mr-2"
-                    >
-                      Sửa
-                    </button>
-                    <button
-                      onClick={() => handleDelete(showtime._id)}
-                      className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600"
-                    >
-                      Xóa
-                    </button>
+                    <div className="flex gap-2">
+                      {!showtime.isActive && (
+                        <button
+                          onClick={() => handleStart(showtime._id)}
+                          className="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600"
+                        >
+                          Bắt đầu
+                        </button>
+                      )}
+                      {showtime.isActive && (
+                        <button
+                          onClick={() => handleEnd(showtime._id)}
+                          className="bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600"
+                        >
+                          Kết thúc
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleEdit(showtime)}
+                        className="bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600"
+                      >
+                        Sửa
+                      </button>
+                      <button
+                        onClick={() => handleDelete(showtime._id)}
+                        className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600"
+                      >
+                        Xóa
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -26,7 +26,20 @@ export interface Movie {
   createdAt?: Date;
   updatedAt?: Date;
 }
+// Thêm vào file types.ts
+export interface ForgotPasswordData {
+  email: string;
+}
 
+export interface ResetPasswordData {
+  token: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+export interface VerifyEmailData {
+  token: string;
+}
 export interface Showtime {
   _id: string;
   movieId: string | Movie;

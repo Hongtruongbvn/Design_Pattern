@@ -24,7 +24,7 @@ const AdminRooms: React.FC = () => {
     name: '',
     theater: '',
     type: 'standard',
-    capacity: 80,
+    capacity: 80, // Mặc định là 80, không cho sửa
   });
 
   useEffect(() => {
@@ -79,7 +79,7 @@ const AdminRooms: React.FC = () => {
       name: room.name,
       theater: room.theater,
       type: room.type,
-      capacity: room.capacity,
+      capacity: 80, // Luôn là 80, không cho sửa
     });
     setShowForm(true);
   };
@@ -155,13 +155,16 @@ const AdminRooms: React.FC = () => {
               <input
                 type="number"
                 required
-                min={1}
-                max={200}
-                value={formData.capacity}
-                onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) })}
-                className="input-field"
+                value={80}
+                disabled
+                className="input-field bg-gray-100 cursor-not-allowed"
               />
-              <p className="text-xs text-gray-500 mt-1">Ghế sẽ được tạo tự động theo format A1, A2, B1, B2,...</p>
+              <p className="text-xs text-gray-500 mt-1">
+                ⚠️ Số ghế được cố định là 80 ghế (8 hàng A-H, mỗi hàng 10 ghế)
+              </p>
+              <p className="text-xs text-blue-600 mt-1">
+                Sơ đồ ghế: A1-A10, B1-B10, C1-C10, D1-D10, E1-E10, F1-F10, G1-G10, H1-H10
+              </p>
             </div>
             <button type="submit" className="btn-primary w-full">
               {editingRoom ? 'Cập nhật' : 'Thêm phòng'}
@@ -196,10 +199,10 @@ const AdminRooms: React.FC = () => {
                 <span className="font-medium">Rạp:</span> {room.theater}
               </p>
               <p className="text-gray-600 mb-2">
-                <span className="font-medium">Sức chứa:</span> {room.capacity} ghế
+                <span className="font-medium">Sức chứa:</span> 80 ghế (cố định)
               </p>
               <p className="text-gray-600 mb-4">
-                <span className="font-medium">Sơ đồ ghế:</span> {room.seatLayout?.rows || Math.ceil(room.capacity / 10)} x 10
+                <span className="font-medium">Sơ đồ ghế:</span> 8 hàng x 10 ghế
               </p>
               <div className="flex space-x-2">
                 <button

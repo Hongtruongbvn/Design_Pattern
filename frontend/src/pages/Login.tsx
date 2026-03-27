@@ -99,8 +99,8 @@ const Login: React.FC = () => {
 
           <div className="flex justify-end">
             <Link to="/forgot-password" className="text-sm text-primary-600 hover:underline">
-              Quên mật khẩu?
-            </Link>
+  Quên mật khẩu?
+</Link>
           </div>
 
           <button

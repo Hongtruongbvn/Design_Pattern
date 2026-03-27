@@ -20,6 +20,9 @@ import PaymentSuccess from './pages/PaymentSuccess';
 import PrivateRoute from './components/PrivateRoute';
 import AdminRoute from './components/AdminRoute';
 import useAuthStore from './store/authStore';
+import AdminOrders from './pages/AdminOrders';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 const App: React.FC = () => {
   const { checkAuth } = useAuthStore();
@@ -40,6 +43,8 @@ const App: React.FC = () => {
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/movies" element={<Movies />} />
           <Route path="/showtimes" element={<Showtimes />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} /> {/* ✅ Đã chuyển ra ngoài */}
+          <Route path="/reset-password" element={<ResetPassword />} />
           
           {/* Protected user routes */}
           <Route element={<PrivateRoute />}>
@@ -52,6 +57,7 @@ const App: React.FC = () => {
           
           {/* Protected admin routes */}
           <Route element={<AdminRoute />}>
+            <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/rooms" element={<AdminRooms />} />
             <Route path="/admin/movies" element={<AdminMovies />} />

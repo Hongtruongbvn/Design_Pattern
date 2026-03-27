@@ -48,6 +48,7 @@ const Bookings: React.FC = () => {
   const fetchBookings = async () => {
     try {
       const response = await api.get('/bookings/my-bookings');
+      console.log('Bookings data:', response.data);
       setBookings(response.data);
     } catch (error) {
       toast.error('Không thể tải danh sách đặt vé');
@@ -59,11 +60,21 @@ const Bookings: React.FC = () => {
   const downloadTicket = async (bookingId: string, bookingCode: string) => {
     setDownloading(bookingId);
     try {
-      const response = await api.get(`/bookings/${bookingId}/ticket`, {
-        responseType: 'blob',
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:3001/api/bookings/${bookingId}/ticket`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
       });
       
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Không thể tải vé');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `ticket_${bookingCode}.pdf`);
@@ -73,22 +84,27 @@ const Bookings: React.FC = () => {
       window.URL.revokeObjectURL(url);
       
       toast.success('Đang tải vé...');
-    } catch (error) {
-      toast.error('Không thể tải vé');
+    } catch (error: any) {
+      console.error('Download error:', error);
+      toast.error(error.message || 'Không thể tải vé');
     } finally {
       setDownloading(null);
     }
   };
 
   const getStatusBadge = (status: string) => {
-    const statusMap: Record<string, { color: string; text: string }> = {
-      pending: { color: 'bg-yellow-100 text-yellow-800', text: 'Chờ thanh toán' },
-      confirmed: { color: 'bg-green-100 text-green-800', text: 'Đã xác nhận' },
-      cancelled: { color: 'bg-red-100 text-red-800', text: 'Đã hủy' },
-      completed: { color: 'bg-blue-100 text-blue-800', text: 'Hoàn thành' },
+    const statusMap: Record<string, { color: string; text: string; icon: string }> = {
+      pending: { color: 'bg-yellow-100 text-yellow-800', text: 'Chờ xác nhận', icon: '⏳' },
+      confirmed: { color: 'bg-green-100 text-green-800', text: 'Đã xác nhận', icon: '✅' },
+      cancelled: { color: 'bg-red-100 text-red-800', text: 'Đã hủy', icon: '❌' },
+      completed: { color: 'bg-blue-100 text-blue-800', text: 'Hoàn thành', icon: '🎬' },
     };
-    const info = statusMap[status] || { color: 'bg-gray-100 text-gray-800', text: status };
-    return <span className={`px-2 py-1 rounded-full text-xs font-medium ${info.color}`}>{info.text}</span>;
+    const info = statusMap[status] || { color: 'bg-gray-100 text-gray-800', text: status, icon: '📋' };
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${info.color}`}>
+        {info.icon} {info.text}
+      </span>
+    );
   };
 
   if (loading) {
@@ -117,7 +133,6 @@ const Bookings: React.FC = () => {
           {bookings.map((booking) => (
             <div key={booking._id} className="card hover:shadow-lg transition">
               <div className="flex flex-col md:flex-row gap-4">
-                {/* Poster */}
                 <div className="md:w-32">
                   <img 
                     src={booking.showtimeId?.movieId?.posterUrl || '/placeholder.jpg'} 
@@ -126,7 +141,6 @@ const Bookings: React.FC = () => {
                   />
                 </div>
                 
-                {/* Info */}
                 <div className="flex-1">
                   <div className="flex justify-between items-start">
                     <div>
@@ -157,36 +171,47 @@ const Bookings: React.FC = () => {
                     </div>
                   </div>
                   
-                  {/* QR Code and Actions */}
-                  <div className="mt-4 pt-3 border-t flex items-center justify-between">
+                  <div className="mt-4 pt-3 border-t flex items-center justify-between flex-wrap gap-3">
                     {booking.status === 'confirmed' && booking.ticketDetails?.qrCode && (
                       <div className="flex items-center gap-3">
                         <img 
                           src={booking.ticketDetails.qrCode} 
                           alt="QR Code" 
-                          className="w-16 h-16 rounded-lg"
+                          className="w-16 h-16 rounded-lg border"
                         />
-                        <div>
-                          <button
-                            onClick={() => downloadTicket(booking._id, booking.bookingCode)}
-                            disabled={downloading === booking._id}
-                            className="bg-blue-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-blue-700 transition disabled:opacity-50"
-                          >
-                            {downloading === booking._id ? 'Đang tải...' : '📄 Tải vé PDF'}
-                          </button>
+                        <div className="text-xs text-gray-500">
+                          QR code vé
                         </div>
                       </div>
                     )}
                     
-                    {booking.status === 'pending' && (
-                      <Link
-                        to={`/checkout?booking=${booking._id}`}
-                        className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 transition"
-                      >
-                        💳 Thanh toán ngay
-                      </Link>
-                    )}
+                    <div className="flex gap-2 ml-auto">
+                      {booking.status === 'pending' && (
+                        <Link
+                          to={`/checkout?booking=${booking._id}`}
+                          className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 transition"
+                        >
+                          💳 Thanh toán qua QR
+                        </Link>
+                      )}
+                      
+                      {(booking.status === 'confirmed' || booking.status === 'completed') && (
+                        <button
+                          onClick={() => downloadTicket(booking._id, booking.bookingCode)}
+                          disabled={downloading === booking._id}
+                          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition disabled:opacity-50"
+                        >
+                          {downloading === booking._id ? 'Đang tải...' : '📄 Tải vé PDF'}
+                        </button>
+                      )}
+                    </div>
                   </div>
+                  
+                  {booking.status === 'pending' && (
+                    <div className="mt-3 p-2 bg-yellow-50 rounded-lg text-xs text-yellow-700">
+                      ⏳ Đơn hàng đang chờ admin xác nhận thanh toán. Vui lòng chờ trong giây lát.
+                    </div>
+                  )}
                   
                   {booking.paymentDetails?.paidAt && (
                     <div className="mt-2 text-xs text-gray-400">

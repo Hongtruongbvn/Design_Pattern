@@ -77,6 +77,9 @@ const AdminDashboard: React.FC = () => {
         >
           📊 Dashboard
         </button>
+        <Link to="/admin/orders" className="pb-2 px-4 text-gray-500 hover:text-blue-600">
+  📦 Quản lý đơn hàng
+</Link>
         <button
           onClick={() => setActiveTab('users')}
           className={`pb-2 px-4 ${activeTab === 'users' ? 'border-b-2 border-blue-600 text-blue-600 font-semibold' : 'text-gray-500'}`}

@@ -50,8 +50,18 @@ const SeatSelection: React.FC = () => {
   const fetchShowtime = async () => {
     try {
       const response = await api.get(`/showtimes/${showtimeId}`);
+      console.log('Showtime data:', response.data);
+      console.log('Seats data:', response.data.seats);
+      
+      const seats = response.data.seats;
+      const bookedSeats = Object.keys(seats).filter(seat => seats[seat] === 'booked');
+      const pendingSeats = Object.keys(seats).filter(seat => seats[seat] === 'pending');
+      console.log('Booked seats:', bookedSeats);
+      console.log('Pending seats:', pendingSeats);
+      
       setShowtime(response.data);
     } catch (error) {
+      console.error('Fetch error:', error);
       toast.error('Không thể tải thông tin suất chiếu');
       navigate('/movies');
     } finally {
@@ -60,7 +70,8 @@ const SeatSelection: React.FC = () => {
   };
 
   const toggleSeat = (seat: string) => {
-    if (showtime?.seats[seat] !== 'available') return;
+    const status = getSeatStatus(seat);
+    if (status !== 'available') return;
     
     setSelectedSeats(prev => 
       prev.includes(seat) 
@@ -70,9 +81,11 @@ const SeatSelection: React.FC = () => {
   };
 
   const getSeatStatus = (seat: string) => {
+    const seatStatus = showtime?.seats[seat];
+    
+    if (seatStatus === 'booked') return 'booked';
+    if (seatStatus === 'pending') return 'pending';
     if (selectedSeats.includes(seat)) return 'selected';
-    if (showtime?.seats[seat] === 'booked') return 'booked';
-    if (showtime?.seats[seat] === 'pending') return 'pending';
     return 'available';
   };
 
@@ -80,47 +93,60 @@ const SeatSelection: React.FC = () => {
     const status = getSeatStatus(seat);
     switch (status) {
       case 'selected':
-        return 'bg-green-500 text-white hover:bg-green-600';
+        return 'bg-green-500 text-white hover:bg-green-600 shadow-lg transform scale-105';
       case 'booked':
-        return 'bg-red-500 text-white cursor-not-allowed opacity-50';
+        return 'bg-red-500 text-white cursor-not-allowed opacity-60 line-through';
       case 'pending':
-        return 'bg-yellow-500 text-white cursor-not-allowed opacity-50';
+        return 'bg-yellow-500 text-white cursor-not-allowed opacity-60';
       default:
-        return 'bg-gray-200 hover:bg-blue-200 cursor-pointer';
+        return 'bg-gray-200 hover:bg-blue-200 cursor-pointer transition-all duration-200';
     }
   };
 
-const handleBooking = async () => {
-  if (selectedSeats.length === 0) {
-    toast.error('Vui lòng chọn ghế');
-    return;
-  }
+  const getSeatTooltip = (seat: string) => {
+    const status = getSeatStatus(seat);
+    switch (status) {
+      case 'selected':
+        return 'Đang chọn';
+      case 'booked':
+        return 'Đã được đặt';
+      case 'pending':
+        return 'Đang được giữ (chờ thanh toán)';
+      default:
+        return 'Ghế trống - Click để chọn';
+    }
+  };
 
-  setSubmitting(true);
-  try {
-    const bookingData = {
-      showtimeId: showtimeId,
-      seats: selectedSeats,
-    };
-    
-    console.log('Sending booking data:', bookingData); // Debug log
-    
-    const response = await api.post('/bookings', bookingData);
+  const handleBooking = async () => {
+    if (selectedSeats.length === 0) {
+      toast.error('Vui lòng chọn ghế');
+      return;
+    }
 
-    console.log('Booking response:', response.data); // Debug log
-    const booking = response.data;
-    toast.success('Đã tạo đơn đặt vé!');
-    
-    // Chuyển đến trang checkout với booking ID
-    navigate(`/checkout?booking=${booking._id}`);
-  } catch (error: any) {
-    console.error('Booking error:', error);
-    console.error('Error response:', error.response?.data); // Debug log chi tiết
-    toast.error(error.response?.data?.message || 'Đặt vé thất bại');
-  } finally {
-    setSubmitting(false);
-  }
-};
+    setSubmitting(true);
+    try {
+      const bookingData = {
+        showtimeId: showtimeId,
+        seats: selectedSeats,
+      };
+      
+      console.log('Sending booking data:', bookingData);
+      
+      const response = await api.post('/bookings', bookingData);
+
+      console.log('Booking response:', response.data);
+      const booking = response.data;
+      toast.success('Đã tạo đơn đặt vé!');
+      
+      navigate(`/checkout?booking=${booking._id}`);
+    } catch (error: any) {
+      console.error('Booking error:', error);
+      console.error('Error response:', error.response?.data);
+      toast.error(error.response?.data?.message || 'Đặt vé thất bại');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -136,18 +162,16 @@ const handleBooking = async () => {
 
   const totalAmount = selectedSeats.length * showtime.basePrice;
   
-  // Lấy danh sách các hàng ghế từ seat keys
   const seatKeys = Object.keys(showtime.seats);
-  
-  // Lấy các hàng ghế duy nhất và sắp xếp
   const rows = [...new Set(seatKeys.map(seat => seat.charAt(0)))].sort();
-  
-  // Lấy số ghế tối đa trong mỗi hàng
   const maxCol = Math.max(...seatKeys.map(seat => parseInt(seat.substring(1))), 0);
+
+  const bookedSeats = seatKeys.filter(seat => showtime.seats[seat] === 'booked').length;
+  const pendingSeats = seatKeys.filter(seat => showtime.seats[seat] === 'pending').length;
+  const availableSeats = seatKeys.filter(seat => showtime.seats[seat] === 'available').length;
 
   return (
     <div>
-      {/* Movie Info */}
       <div className="mb-6 p-4 bg-white rounded-lg shadow">
         <h1 className="text-xl font-bold">{showtime.movieId.title}</h1>
         <div className="text-gray-600 mt-2">
@@ -157,28 +181,35 @@ const handleBooking = async () => {
         </div>
       </div>
 
-      {/* Screen */}
       <div className="mb-8">
         <div className="bg-gray-300 h-4 w-full rounded-t-lg"></div>
         <div className="text-center text-gray-500 text-sm mt-2">MÀN HÌNH</div>
       </div>
 
-      {/* Seats */}
+      <div className="mb-4 p-3 bg-blue-50 rounded-lg text-center">
+        <div className="flex justify-center gap-6 text-sm">
+          <span>🟢 Ghế trống: {availableSeats}</span>
+          <span>🟡 Đang giữ: {pendingSeats}</span>
+          <span>🔴 Đã đặt: {bookedSeats}</span>
+        </div>
+      </div>
+
       <div className="flex justify-center mb-8 overflow-x-auto">
         <div className="inline-block">
           {rows.map(row => (
             <div key={row} className="flex mb-2">
-              <div className="w-8 text-center font-bold">{row}</div>
+              <div className="w-8 text-center font-bold flex items-center justify-center">{row}</div>
               {Array.from({ length: maxCol }, (_, i) => i + 1).map(col => {
                 const seatNumber = `${row}${col}`;
-                // Kiểm tra ghế có tồn tại không
                 if (!showtime.seats[seatNumber]) return null;
+                
                 return (
                   <button
                     key={seatNumber}
                     onClick={() => toggleSeat(seatNumber)}
-                    disabled={showtime.seats[seatNumber] !== 'available'}
-                    className={`w-8 h-8 m-1 rounded text-xs font-medium transition ${getSeatClass(seatNumber)}`}
+                    title={getSeatTooltip(seatNumber)}
+                    className={`w-8 h-8 m-1 rounded text-xs font-medium transition-all duration-200 ${getSeatClass(seatNumber)}`}
+                    disabled={getSeatStatus(seatNumber) === 'booked' || getSeatStatus(seatNumber) === 'pending'}
                   >
                     {col}
                   </button>
@@ -189,27 +220,25 @@ const handleBooking = async () => {
         </div>
       </div>
 
-      {/* Legend */}
       <div className="flex justify-center gap-6 mb-8 flex-wrap">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 bg-gray-200 rounded"></div>
+          <div className="w-6 h-6 bg-gray-200 rounded shadow"></div>
           <span className="text-sm">Ghế trống</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 bg-green-500 rounded"></div>
+          <div className="w-6 h-6 bg-green-500 rounded shadow"></div>
           <span className="text-sm">Đang chọn</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 bg-red-500 rounded"></div>
+          <div className="w-6 h-6 bg-red-500 rounded shadow opacity-60"></div>
           <span className="text-sm">Đã đặt</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 bg-yellow-500 rounded"></div>
+          <div className="w-6 h-6 bg-yellow-500 rounded shadow opacity-60"></div>
           <span className="text-sm">Đang giữ</span>
         </div>
       </div>
 
-      {/* Booking Summary */}
       <div className="card bg-gray-50 sticky bottom-4">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div>
